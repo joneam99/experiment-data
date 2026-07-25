@@ -261,9 +261,26 @@ const KW_RULES = [
 // ============================================================
 // STATE
 // ============================================================
+const STORAGE_KEY = 'exp-dashboard-v1';
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return null;
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ experiments: state.experiments, selectedId: state.selectedId }));
+  } catch(e) {}
+}
+
+const saved = loadState();
 let state = {
-  experiments: JSON.parse(JSON.stringify(EXPERIMENTS)),
-  selectedId: 'exp-001',
+  experiments: saved ? saved.experiments : JSON.parse(JSON.stringify(EXPERIMENTS)),
+  selectedId:  saved ? saved.selectedId  : 'exp-001',
   filter: '',
   charts: {}
 };
@@ -631,6 +648,7 @@ function switchMetric(idx) {
 // ============================================================
 function selectExp(id) {
   state.selectedId = id;
+  saveState();
   renderSidebar();
   renderMain();
 }
@@ -648,6 +666,7 @@ function changeStatus(expId, newStatus) {
   const exp = state.experiments.find(e => e.id === expId);
   if (exp) exp.status = newStatus;
   document.querySelectorAll('.status-dropdown').forEach(d => d.classList.remove('open'));
+  saveState();
   renderSidebar();
   renderMain();
 }
@@ -769,6 +788,7 @@ function createExp() {
 
   state.experiments.unshift(newExp);
   state.selectedId = newExp.id;
+  saveState();
   closeModal();
   renderSidebar();
   renderMain();
