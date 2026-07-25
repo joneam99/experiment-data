@@ -261,26 +261,40 @@ const KW_RULES = [
 // ============================================================
 // STATE
 // ============================================================
-const STORAGE_KEY = 'exp-dashboard-v1';
+const SB_URL = 'https://pmttzmtvdbqnzwqhleki.supabase.co';
+const SB_KEY = 'sb_publishable_aVuGBHA_vaSPyzvm27ZCPg_cpwQdyUI';
+const SB_HEADERS = {
+  'apikey': SB_KEY,
+  'Authorization': `Bearer ${SB_KEY}`,
+  'Content-Type': 'application/json',
+};
 
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return null;
+async function sbFetch(path, options = {}) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, { ...options, headers: { ...SB_HEADERS, ...options.headers } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
 }
 
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ experiments: state.experiments, selectedId: state.selectedId }));
-  } catch(e) {}
+function rowToExp(r) {
+  return { id: r.id, name: r.name, hypothesis: r.hypothesis, status: r.status,
+    startDate: r.start_date, durationDays: r.duration_days, tags: r.tags || [], metrics: r.metrics || [] };
+}
+function expToRow(e) {
+  return { id: e.id, name: e.name, hypothesis: e.hypothesis, status: e.status,
+    start_date: e.startDate, duration_days: e.durationDays, tags: e.tags, metrics: e.metrics };
 }
 
-const saved = loadState();
+async function saveExp(exp) {
+  await sbFetch('experiments', {
+    method: 'POST',
+    headers: { 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify(expToRow(exp)),
+  });
+}
+
 let state = {
-  experiments: saved ? saved.experiments : JSON.parse(JSON.stringify(EXPERIMENTS)),
-  selectedId:  saved ? saved.selectedId  : 'exp-001',
+  experiments: JSON.parse(JSON.stringify(EXPERIMENTS)),
+  selectedId: 'exp-001',
   filter: '',
   charts: {}
 };
@@ -648,7 +662,6 @@ function switchMetric(idx) {
 // ============================================================
 function selectExp(id) {
   state.selectedId = id;
-  saveState();
   renderSidebar();
   renderMain();
 }
@@ -662,13 +675,14 @@ function toggleStatusDropdown(e, expId) {
   if (!isOpen) dd.classList.add('open');
 }
 
-function changeStatus(expId, newStatus) {
+async function changeStatus(expId, newStatus) {
   const exp = state.experiments.find(e => e.id === expId);
-  if (exp) exp.status = newStatus;
+  if (!exp) return;
+  exp.status = newStatus;
   document.querySelectorAll('.status-dropdown').forEach(d => d.classList.remove('open'));
-  saveState();
   renderSidebar();
   renderMain();
+  await saveExp(exp);
 }
 
 // close dropdown when clicking outside
@@ -752,7 +766,7 @@ function toggleM(id, checked) {
   checked ? selectedMetrics.add(id) : selectedMetrics.delete(id);
 }
 
-function createExp() {
+async function createExp() {
   const name = document.getElementById('f-name').value.trim();
   const hyp  = document.getElementById('f-hypothesis').value.trim();
   const start = document.getElementById('f-start').value;
@@ -788,17 +802,34 @@ function createExp() {
 
   state.experiments.unshift(newExp);
   state.selectedId = newExp.id;
-  saveState();
   closeModal();
   renderSidebar();
   renderMain();
+  await saveExp(newExp);
 }
 
 // ============================================================
 // INIT
 // ============================================================
-renderSidebar();
-renderMain();
+async function init() {
+  document.getElementById('sidebar').innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">불러오는 중…</div>';
+  try {
+    const rows = await sbFetch('experiments?select=*&order=created_at.asc');
+    if (rows.length > 0) {
+      state.experiments = rows.map(rowToExp);
+      state.selectedId = state.experiments[0].id;
+    } else {
+      // 처음 접속 — 더미 데이터 Supabase에 저장
+      for (const exp of state.experiments) await saveExp(exp);
+    }
+  } catch(e) {
+    console.warn('Supabase 연결 실패, 더미 데이터로 시작합니다', e);
+  }
+  renderSidebar();
+  renderMain();
+}
+
+init();
 </script>
 </body>
 </html>
