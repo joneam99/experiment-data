@@ -4,1024 +4,727 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>실험 대시보드</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:         #f7f6f3;
-      --surface:    #ffffff;
-      --border:     #e8e7e4;
-      --border-2:   #f0efec;
-      --txt-1:      #1a1917;
-      --txt-2:      #706f6b;
-      --txt-3:      #a8a7a2;
-      --accent:     #5b5bd6;
-      --accent-bg:  #f0f0ff;
-      --radius-sm:  5px;
-      --radius-md:  8px;
-      --radius-lg:  10px;
+    body { font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .exp-card { cursor: pointer; transition: background 0.12s; border-left: 3px solid transparent; }
+    .exp-card:hover { background: #f8fafc; }
+    .exp-card.active { background: #eef2ff; border-left-color: #6366f1; }
+    .metric-card { transition: transform 0.15s, box-shadow 0.15s; }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .hypothesis-box { border-left: 3px solid #6366f1; background: #fafafa; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+    .modal-overlay { backdrop-filter: blur(3px); }
+    .pulse-dot { animation: pulse-anim 1.8s infinite; }
+    @keyframes pulse-anim {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
     }
-
-    body {
-      font-family: -apple-system, 'Apple SD Gothic Neo', 'Pretendard', BlinkMacSystemFont, sans-serif;
-      font-size: 13px;
-      line-height: 1.5;
-      background: var(--bg);
-      color: var(--txt-1);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-    /* ── TOP BAR ── */
-    .topbar {
-      height: 44px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      padding: 0 16px;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    .topbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--txt-1);
-      padding-right: 12px;
-      border-right: 1px solid var(--border);
-      margin-right: 4px;
-    }
-    .brand-icon {
-      width: 22px; height: 22px;
-      background: var(--accent);
-      border-radius: 5px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      flex-shrink: 0;
-    }
-    .breadcrumb {
-      display: flex; align-items: center; gap: 6px;
-      color: var(--txt-3);
-      font-size: 13px;
-    }
-    .breadcrumb span { color: var(--txt-1); font-weight: 500; }
-    .breadcrumb svg { flex-shrink: 0; }
-    .topbar-right {
-      margin-left: auto;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .conn-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 11px;
-      color: var(--txt-3);
-    }
-    .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
-    .btn-primary {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 5px 10px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.12s;
-    }
-    .btn-primary:hover { opacity: 0.88; }
-    .btn-secondary {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 5px 10px;
-      background: var(--surface);
-      color: var(--txt-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-    .btn-secondary:hover { background: var(--bg); }
-
-    /* ── LAYOUT ── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── SIDEBAR ── */
-    .sidebar {
-      width: 232px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .sidebar-search {
-      padding: 10px 10px 8px;
-      border-bottom: 1px solid var(--border-2);
-    }
-    .sidebar-search input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 5px 8px;
-      font-size: 12px;
-      color: var(--txt-1);
-      outline: none;
-    }
-    .sidebar-search input::placeholder { color: var(--txt-3); }
-    .sidebar-search input:focus { border-color: var(--accent); }
-    .sidebar-body { flex: 1; overflow-y: auto; padding: 6px 0; }
-
-    .sidebar-group-label {
-      padding: 12px 12px 4px;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--txt-3);
-    }
-    .exp-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      margin: 0 4px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: background 0.1s;
-      border-left: 2px solid transparent;
-    }
-    .exp-row:hover { background: var(--bg); }
-    .exp-row.active { background: var(--accent-bg); border-left-color: var(--accent); }
-    .exp-row.active .exp-row-name { color: var(--accent); font-weight: 500; }
-    .exp-row-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .exp-row-info { flex: 1; min-width: 0; }
-    .exp-row-name {
-      font-size: 12.5px;
-      color: var(--txt-1);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      line-height: 1.4;
-    }
-    .exp-row-meta { font-size: 10.5px; color: var(--txt-3); margin-top: 1px; }
-
-    /* ── STATUS BADGES ── */
-    .badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px 7px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    .badge-running   { background: #dbeafe; color: #1d4ed8; }
-    .badge-completed { background: #d1fae5; color: #065f46; }
-    .badge-draft     { background: #f3f4f6; color: #6b7280; }
-    .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-    .badge-running .badge-dot { animation: blink 1.8s infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
-
-    /* ── MAIN ── */
-    .main { flex: 1; overflow-y: auto; }
-    .main-inner { padding: 28px 32px; max-width: 960px; }
-
-    /* ── EXP HEADER ── */
-    .exp-header { margin-bottom: 24px; }
-    .exp-title-row {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 6px;
-    }
-    .exp-title { font-size: 18px; font-weight: 600; color: var(--txt-1); }
-    .exp-meta { font-size: 12px; color: var(--txt-3); display: flex; align-items: center; gap: 8px; }
-    .exp-meta-sep { color: var(--border); }
-    .exp-progress {
-      margin-top: 10px;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .progress-bar-wrap {
-      flex: 1; height: 3px;
-      background: var(--border);
-      border-radius: 99px;
-      overflow: hidden;
-    }
-    .progress-bar-fill { height: 100%; background: #3b82f6; border-radius: 99px; transition: width 0.3s; }
-    .progress-label { font-size: 11px; color: var(--txt-3); white-space: nowrap; }
-
-    /* ── SECTION LABEL ── */
-    .section-label {
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--txt-3);
-      margin-bottom: 10px;
-    }
-
-    /* ── HYPOTHESIS BOX ── */
-    .hypothesis-block {
-      margin-bottom: 24px;
-    }
-    .hypothesis-text {
-      padding: 12px 14px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: var(--radius-md);
-      font-size: 13px;
-      color: var(--txt-1);
-      line-height: 1.7;
-    }
-
-    /* ── METRIC GRID ── */
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 24px;
-    }
-    @media (max-width: 800px) { .metric-grid { grid-template-columns: repeat(2, 1fr); } }
-
-    .metric-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 14px;
-      transition: border-color 0.12s;
-    }
-    .metric-card:hover { border-color: #c8c7c3; }
-    .metric-card-top {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .metric-source-badge {
-      font-size: 10px; font-weight: 500;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      color: var(--txt-3);
-    }
-    .metric-cat-icon { font-size: 13px; }
-    .metric-name {
-      font-size: 12px;
-      color: var(--txt-2);
-      margin-bottom: 8px;
-      line-height: 1.3;
-    }
-    .metric-values { display: flex; flex-direction: column; gap: 3px; }
-    .metric-row {
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .metric-row-label { font-size: 11px; color: var(--txt-3); }
-    .metric-before { font-size: 13px; font-weight: 500; color: var(--txt-2); }
-    .metric-after  { font-size: 14px; font-weight: 600; color: var(--txt-1); }
-    .metric-after.none { color: var(--txt-3); font-weight: 400; }
-    .metric-change {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border-2);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .metric-change-label { font-size: 11px; color: var(--txt-3); }
-    .chip-up   { background: #d1fae5; color: #065f46; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
-    .chip-down { background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
-    .chip-neutral { background: var(--bg); color: var(--txt-3); font-size: 11px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--border); }
-
-    /* ── CHART SECTION ── */
-    .chart-section { margin-bottom: 24px; }
-    .chart-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .chart-tabs { display: flex; gap: 4px; }
-    .chart-tab {
-      padding: 4px 10px;
-      font-size: 11px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--txt-2);
-      cursor: pointer;
-      transition: all 0.1s;
-    }
-    .chart-tab:hover { background: var(--bg); }
-    .chart-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .chart-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 16px 18px;
-    }
-
-    /* ── TAGS ── */
-    .exp-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-    .tag-pill {
-      padding: 2px 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      font-size: 11px;
-      color: var(--txt-2);
-    }
-
-    /* ── SUMMARY STATS ── */
-    .summary-row {
-      display: flex; gap: 16px;
-      margin-bottom: 20px;
-    }
-    .summary-stat {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 10px 16px;
-      text-align: center;
-      min-width: 80px;
-    }
-    .summary-num { font-size: 20px; font-weight: 700; color: var(--txt-1); }
-    .summary-num.green { color: #059669; }
-    .summary-desc { font-size: 10.5px; color: var(--txt-3); margin-top: 1px; }
-
-    /* ── EMPTY / DRAFT ── */
-    .empty-chart {
-      background: var(--surface);
-      border: 1px dashed var(--border);
-      border-radius: var(--radius-md);
-      padding: 40px;
-      text-align: center;
-      color: var(--txt-3);
-      font-size: 13px;
-    }
-    .empty-chart-icon { font-size: 28px; margin-bottom: 8px; }
-
-    /* ── EMPTY MAIN ── */
-    .empty-main {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      height: 100%; color: var(--txt-3); font-size: 13px;
-    }
-    .empty-main-icon {
-      width: 44px; height: 44px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-      margin-bottom: 12px;
-    }
-
-    /* ── MODAL ── */
-    .modal-bg {
-      display: none;
-      position: fixed; inset: 0; z-index: 50;
-      background: rgba(0,0,0,0.2);
-      backdrop-filter: blur(2px);
-      align-items: center; justify-content: center;
-    }
-    .modal-bg.open { display: flex; }
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-      width: 100%;
-      max-width: 520px;
-      max-height: 90vh;
-      overflow-y: auto;
-      margin: 16px;
-    }
-    .modal-header {
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .modal-title { font-size: 14px; font-weight: 600; color: var(--txt-1); }
-    .modal-close {
-      width: 24px; height: 24px;
-      display: flex; align-items: center; justify-content: center;
-      background: none; border: none;
-      color: var(--txt-3); cursor: pointer; border-radius: var(--radius-sm);
-      transition: background 0.1s;
-    }
-    .modal-close:hover { background: var(--bg); color: var(--txt-1); }
-    .modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-    .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 6px; }
-
-    .form-label { display: block; font-size: 11.5px; font-weight: 500; color: var(--txt-2); margin-bottom: 5px; }
-    .form-input {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 7px 10px;
-      font-size: 13px;
-      color: var(--txt-1);
-      background: var(--surface);
-      outline: none;
-      transition: border-color 0.1s;
-      font-family: inherit;
-    }
-    .form-input:focus { border-color: var(--accent); }
-    .form-input::placeholder { color: var(--txt-3); }
-    textarea.form-input { resize: none; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .form-unit-wrap { position: relative; }
-    .form-unit-wrap input { padding-right: 28px; }
-    .form-unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--txt-3); pointer-events: none; }
-
-    .analyze-btn {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: none; border: none;
-      font-size: 12px; color: var(--accent);
-      font-weight: 500; cursor: pointer; padding: 0;
-      margin-top: 6px;
-      opacity: 0.4;
-      pointer-events: none;
-      transition: opacity 0.15s;
-      font-family: inherit;
-    }
-    .analyze-btn.ready { opacity: 1; pointer-events: auto; }
-    .analyze-btn:hover { text-decoration: underline; }
-
-    .analysis-box {
-      display: none;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 12px;
-    }
-    .analysis-box.open { display: block; }
-    .analysis-section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--txt-3); margin-bottom: 6px; }
-    .theme-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
-    .theme-tag { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; }
-
-    .metric-check-group { margin-bottom: 10px; }
-    .metric-check-divider {
-      display: flex; align-items: center; gap: 8px;
-      margin: 8px 0 5px;
-      font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
-      text-transform: uppercase; color: var(--txt-3);
-    }
-    .metric-check-divider::before, .metric-check-divider::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-    .metric-check-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 5px 6px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: background 0.08s;
-    }
-    .metric-check-item:hover { background: var(--surface); }
-    .metric-check-item input { accent-color: var(--accent); cursor: pointer; }
-    .metric-check-name { flex: 1; font-size: 12.5px; color: var(--txt-1); }
-    .metric-check-unit { font-size: 11px; color: var(--txt-3); }
-    .metric-check-src { font-size: 10px; color: var(--txt-3); background: var(--surface); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 h-screen flex flex-col overflow-hidden">
 
-<!-- TOP BAR -->
-<div class="topbar">
-  <div class="topbar-brand">
-    <div class="brand-icon">E</div>
-    실험 대시보드
+<!-- ── HEADER ── -->
+<header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">E</div>
+    <div>
+      <h1 class="text-base font-semibold text-slate-900 leading-tight">실험 대시보드</h1>
+      <p class="text-xs text-slate-400">Experiment Tracker · dummy data</p>
+    </div>
   </div>
-  <div class="breadcrumb" id="breadcrumb">
-    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    <span id="breadcrumb-title">실험을 선택하세요</span>
-  </div>
-  <div class="topbar-right">
-    <div class="conn-badge"><div class="conn-dot"></div> BigQuery 미연결</div>
-    <div class="conn-badge"><div class="conn-dot"></div> GA4 미연결</div>
-    <button class="btn-primary" onclick="openModal()">
-      <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+  <div class="flex items-center gap-2">
+    <span class="tag bg-slate-100 text-slate-400">BigQuery 미연결</span>
+    <span class="tag bg-slate-100 text-slate-400">GA4 미연결</span>
+    <button onclick="openModal()" class="ml-2 bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-1.5">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
       새 실험
     </button>
   </div>
-</div>
+</header>
 
-<!-- LAYOUT -->
-<div class="layout">
+<!-- ── LAYOUT ── -->
+<div class="flex flex-1 overflow-hidden">
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="sidebar-search">
-      <input type="text" placeholder="실험 검색…" oninput="filterList(this.value)">
+  <aside class="w-68 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 overflow-hidden" style="width:272px">
+    <div class="px-3 py-3 border-b border-slate-100">
+      <input type="text" placeholder="실험 검색…" oninput="filterList(this.value)"
+        class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
     </div>
-    <div class="sidebar-body" id="sidebar"></div>
-  </div>
+    <div id="sidebar" class="flex-1 overflow-y-auto py-2"></div>
+  </aside>
 
   <!-- MAIN -->
-  <div class="main">
-    <div class="main-inner" id="main"></div>
-  </div>
+  <main id="main" class="flex-1 overflow-y-auto"></main>
 </div>
 
-<!-- MODAL -->
-<div class="modal-bg" id="modal-bg">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">새 실험 만들기</span>
-      <button class="modal-close" onclick="closeModal()">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+<!-- ── CREATE MODAL ── -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-overlay bg-black/25">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-slate-900">새 실험 만들기</h2>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="modal-body">
+    <div class="p-5 space-y-4">
       <div>
-        <label class="form-label">실험명</label>
-        <input id="f-name" class="form-input" type="text" placeholder="예: 상품 이미지 확대 A/B 테스트">
+        <label class="block text-sm font-medium text-slate-700 mb-1">실험명</label>
+        <input id="f-name" type="text" placeholder="예: 상품 이미지 확대 A/B 테스트"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
       </div>
       <div>
-        <label class="form-label">가설</label>
-        <textarea id="f-hypothesis" class="form-input" rows="3" oninput="onHypInput()"
-          placeholder="예: 상품 이미지를 크게 보여주면 구매전환율이 높아질 것이다"></textarea>
-        <button id="analyze-btn" class="analyze-btn" onclick="runAnalysis()">
-          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <label class="block text-sm font-medium text-slate-700 mb-1">가설</label>
+        <textarea id="f-hypothesis" rows="3" oninput="onHypInput()"
+          placeholder="예: 상품 이미지를 크게 보여주면 구매전환율이 높아질 것이다"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"></textarea>
+        <button id="analyze-btn" onclick="runAnalysis()" disabled
+          class="mt-2 text-sm text-indigo-600 font-medium flex items-center gap-1 opacity-40 cursor-not-allowed transition-opacity">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           가설 분석 → 지표 추천
         </button>
       </div>
 
-      <div id="analysis-box" class="analysis-box">
-        <div class="analysis-section-label">감지된 주제</div>
-        <div id="detected-tags" class="theme-tags"></div>
-        <div class="analysis-section-label">추천 지표</div>
-        <div id="metric-list" class="metric-check-group"></div>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label class="form-label">시작일</label>
-          <input id="f-start" class="form-input" type="date">
+      <!-- Analysis result -->
+      <div id="analysis-area" class="hidden space-y-3">
+        <div class="bg-indigo-50 rounded-xl p-3">
+          <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">감지된 주제</p>
+          <div id="detected-tags" class="flex flex-wrap gap-1.5"></div>
         </div>
         <div>
-          <label class="form-label">기간</label>
-          <div class="form-unit-wrap">
-            <input id="f-dur" class="form-input" type="number" value="14" min="1" max="90">
-            <span class="form-unit">일</span>
+          <p class="text-sm font-medium text-slate-700 mb-2">추천 지표 <span class="text-slate-400 font-normal">(선택)</span></p>
+          <div id="metric-list" class="space-y-1.5"></div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">시작일</label>
+          <input id="f-start" type="date" class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">기간</label>
+          <div class="relative">
+            <input id="f-dur" type="number" value="14" min="1" max="90"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <span class="absolute right-3 top-2.5 text-sm text-slate-400">일</span>
           </div>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="closeModal()">취소</button>
-      <button class="btn-primary" onclick="createExp()">실험 생성</button>
+    <div class="p-5 pt-0 flex justify-end gap-2">
+      <button onclick="closeModal()" class="text-sm text-slate-600 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50">취소</button>
+      <button onclick="createExp()" class="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">실험 생성</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-// DATA
-// ─────────────────────────────────────────────
+// ============================================================
+// DUMMY DATA
+// ============================================================
 const EXPERIMENTS = [
   {
-    id:'exp-001', name:'상품 이미지 확대 테스트',
-    hypothesis:'상품 상세페이지에서 메인 이미지를 더 크게 노출하면 상품에 대한 신뢰도가 높아져 구매전환율이 5% 이상 증가할 것이다.',
-    status:'completed', startDate:'2024-06-10', durationDays:21, tags:['전환','상품상세'],
-    metrics:[
-      {id:'cvr',    name:'구매전환율',     unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', baseline:3.2,  current:3.8,
-       trend:[3.15,3.22,3.18,3.31,3.35,3.42,3.38,3.51,3.48,3.55,3.62,3.58,3.65,3.71,3.68,3.74,3.79,3.76,3.82,3.78,3.80]},
-      {id:'atc',    name:'장바구니 추가율', unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', baseline:12.4, current:14.1,
-       trend:[12.3,12.5,12.6,12.8,12.9,13.1,13.0,13.3,13.4,13.5,13.6,13.7,13.8,13.9,13.8,14.0,14.0,14.1,14.1,14.0,14.1]},
-      {id:'dur',    name:'평균 체류시간',   unit:'초',   source:'GA4',      direction:'up_is_good',   category:'engagement', baseline:134,  current:167,
-       trend:[132,135,138,140,143,145,142,148,150,152,154,156,154,158,160,162,163,165,166,165,167]},
-      {id:'bounce', name:'이탈률',          unit:'%',    source:'GA4',      direction:'down_is_good', category:'engagement', baseline:45.2, current:41.3,
-       trend:[45.0,44.8,44.5,44.2,43.9,43.6,43.8,43.4,43.1,42.8,42.5,42.3,42.5,42.1,41.9,41.7,41.6,41.5,41.4,41.3,41.3]}
+    id: 'exp-001',
+    name: '상품 이미지 확대 테스트',
+    hypothesis: '상품 상세페이지에서 메인 이미지를 더 크게 노출하면 상품에 대한 신뢰도가 높아져 구매전환율이 5% 이상 증가할 것이다.',
+    status: 'completed',
+    startDate: '2024-06-10',
+    durationDays: 21,
+    tags: ['전환', '상품상세'],
+    metrics: [
+      { id:'cvr',      name:'구매전환율',       unit:'%',    source:'GA4',       direction:'up_is_good',   category:'conversion', baseline:3.2,  current:3.8,
+        trend:[3.15,3.22,3.18,3.31,3.35,3.42,3.38,3.51,3.48,3.55,3.62,3.58,3.65,3.71,3.68,3.74,3.79,3.76,3.82,3.78,3.80] },
+      { id:'atc',      name:'장바구니 추가율',   unit:'%',    source:'GA4',       direction:'up_is_good',   category:'conversion', baseline:12.4, current:14.1,
+        trend:[12.3,12.5,12.6,12.8,12.9,13.1,13.0,13.3,13.4,13.5,13.6,13.7,13.8,13.9,13.8,14.0,14.0,14.1,14.1,14.0,14.1] },
+      { id:'dur',      name:'평균 체류시간',     unit:'초',   source:'GA4',       direction:'up_is_good',   category:'engagement', baseline:134,  current:167,
+        trend:[132,135,138,140,143,145,142,148,150,152,154,156,154,158,160,162,163,165,166,165,167] },
+      { id:'bounce',   name:'이탈률',            unit:'%',    source:'GA4',       direction:'down_is_good', category:'engagement', baseline:45.2, current:41.3,
+        trend:[45.0,44.8,44.5,44.2,43.9,43.6,43.8,43.4,43.1,42.8,42.5,42.3,42.5,42.1,41.9,41.7,41.6,41.5,41.4,41.3,41.3] }
     ]
   },
   {
-    id:'exp-002', name:'메인 배너 할인율 문구 노출',
-    hypothesis:'메인 홈 배너에 "최대 XX% 할인" 문구를 추가하면 배너 클릭률이 증가하고 결과적으로 일매출이 10% 이상 향상될 것이다.',
-    status:'running', startDate:'2024-07-05', durationDays:20, tags:['CTR','매출','배너'],
-    metrics:[
-      {id:'ctr',    name:'배너 클릭률(CTR)', unit:'%',    source:'GA4',      direction:'up_is_good', category:'traffic',  baseline:2.1,  current:3.4,
-       trend:[2.2,2.5,2.8,3.0,3.1,3.2,3.0,3.3,3.4,3.4]},
-      {id:'rev',    name:'일평균 매출',       unit:'만원', source:'BigQuery', direction:'up_is_good', category:'revenue',  baseline:1240, current:1380,
-       trend:[1260,1280,1310,1330,1350,1360,1340,1370,1380,1380]},
-      {id:'sess',   name:'세션수',            unit:'세션', source:'GA4',      direction:'up_is_good', category:'traffic',  baseline:8500, current:9200,
-       trend:[8600,8700,8850,8900,9000,9050,8950,9100,9150,9200]},
-      {id:'orders', name:'주문수',            unit:'건',   source:'BigQuery', direction:'up_is_good', category:'revenue',  baseline:272,  current:310,
-       trend:[275,280,290,295,300,302,298,308,310,310]}
+    id: 'exp-002',
+    name: '메인 배너 할인율 문구 노출',
+    hypothesis: '메인 홈 배너에 "최대 XX% 할인" 문구를 추가하면 배너 클릭률이 증가하고 결과적으로 일매출이 10% 이상 향상될 것이다.',
+    status: 'running',
+    startDate: '2024-07-05',
+    durationDays: 20,
+    tags: ['CTR', '매출', '배너'],
+    metrics: [
+      { id:'ctr',     name:'배너 클릭률(CTR)', unit:'%',    source:'GA4',       direction:'up_is_good', category:'traffic',  baseline:2.1,  current:3.4,
+        trend:[2.2,2.5,2.8,3.0,3.1,3.2,3.0,3.3,3.4,3.4] },
+      { id:'rev',     name:'일평균 매출',       unit:'만원', source:'BigQuery',  direction:'up_is_good', category:'revenue',  baseline:1240, current:1380,
+        trend:[1260,1280,1310,1330,1350,1360,1340,1370,1380,1380] },
+      { id:'sess',    name:'세션수',            unit:'세션', source:'GA4',       direction:'up_is_good', category:'traffic',  baseline:8500, current:9200,
+        trend:[8600,8700,8850,8900,9000,9050,8950,9100,9150,9200] },
+      { id:'orders',  name:'주문수',            unit:'건',   source:'BigQuery',  direction:'up_is_good', category:'revenue',  baseline:272,  current:310,
+        trend:[275,280,290,295,300,302,298,308,310,310] }
     ]
   },
   {
-    id:'exp-003', name:'장바구니 쿠폰 자동 추천',
-    hypothesis:'장바구니 페이지에서 사용 가능한 쿠폰을 자동으로 추천해주면 쿠폰 사용률이 높아져 결제 완료율이 향상되고 객단가가 증가할 것이다.',
-    status:'draft', startDate:'2024-07-28', durationDays:14, tags:['쿠폰','전환','객단가'],
-    metrics:[
-      {id:'coupon',   name:'쿠폰 사용률',          unit:'%',  source:'BigQuery', direction:'up_is_good', category:'conversion', baseline:18.3, current:null, trend:[]},
-      {id:'cart_cvr', name:'장바구니→주문 전환율',  unit:'%',  source:'GA4',      direction:'up_is_good', category:'conversion', baseline:61.2, current:null, trend:[]},
-      {id:'aov',      name:'평균 주문금액(AOV)',     unit:'원', source:'BigQuery', direction:'up_is_good', category:'revenue',    baseline:52400,current:null, trend:[]},
-      {id:'chk',      name:'결제완료율',            unit:'%',  source:'GA4',      direction:'up_is_good', category:'conversion', baseline:74.5, current:null, trend:[]}
+    id: 'exp-003',
+    name: '장바구니 쿠폰 자동 추천',
+    hypothesis: '장바구니 페이지에서 사용 가능한 쿠폰을 자동으로 추천해주면 쿠폰 사용률이 높아져 결제 완료율이 향상되고 객단가가 증가할 것이다.',
+    status: 'draft',
+    startDate: '2024-07-28',
+    durationDays: 14,
+    tags: ['쿠폰', '전환', '객단가'],
+    metrics: [
+      { id:'coupon',   name:'쿠폰 사용률',              unit:'%',  source:'BigQuery', direction:'up_is_good', category:'conversion', baseline:18.3, current:null, trend:[] },
+      { id:'cart_cvr', name:'장바구니→주문 전환율',     unit:'%',  source:'GA4',      direction:'up_is_good', category:'conversion', baseline:61.2, current:null, trend:[] },
+      { id:'aov',      name:'평균 주문금액(AOV)',        unit:'원', source:'BigQuery', direction:'up_is_good', category:'revenue',    baseline:52400,current:null, trend:[] },
+      { id:'chk',      name:'결제완료율',               unit:'%',  source:'GA4',      direction:'up_is_good', category:'conversion', baseline:74.5, current:null, trend:[] }
     ]
   }
 ];
 
+// ============================================================
+// METRIC LIBRARY (for hypothesis analysis)
+// ============================================================
 const METRIC_LIB = {
-  conversion:{label:'전환/구매',themeClass:'theme-indigo',metrics:[
-    {id:'ml_cvr', name:'구매전환율',          unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:3.2},
-    {id:'ml_atc', name:'장바구니 추가율',      unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:12.4},
-    {id:'ml_chk', name:'결제완료율',           unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:74.5},
-    {id:'ml_ccvr',name:'장바구니→주문 전환율', unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:61.2},
-  ]},
-  revenue:{label:'매출',themeClass:'theme-amber',metrics:[
-    {id:'ml_rev',  name:'일평균 매출',       unit:'만원', source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:1200},
-    {id:'ml_aov',  name:'평균 주문금액(AOV)', unit:'원',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:52000},
-    {id:'ml_ords', name:'주문수',            unit:'건',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:260},
-    {id:'ml_arpu', name:'1인당 매출(ARPU)',  unit:'원',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:8500},
-  ]},
-  traffic:{label:'트래픽/클릭',themeClass:'theme-blue',metrics:[
-    {id:'ml_sess', name:'세션수',       unit:'세션', source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:8500},
-    {id:'ml_ctr',  name:'클릭률(CTR)', unit:'%',   source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:2.1},
-    {id:'ml_bctr', name:'배너 클릭률', unit:'%',   source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:2.0},
-    {id:'ml_impr', name:'노출수',      unit:'회',  source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:15000},
-  ]},
-  engagement:{label:'체류/참여',themeClass:'theme-green',metrics:[
-    {id:'ml_dur',    name:'평균 체류시간',   unit:'초',  source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:130},
-    {id:'ml_pv',     name:'페이지뷰(PV)',   unit:'PV',  source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:25000},
-    {id:'ml_bounce', name:'이탈률',         unit:'%',   source:'GA4', direction:'down_is_good', category:'engagement', defaultBaseline:45.0},
-    {id:'ml_pps',    name:'세션당 페이지수', unit:'p',   source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:3.2},
-  ]},
-  coupon:{label:'쿠폰/프로모션',themeClass:'theme-pink',metrics:[
-    {id:'ml_coup', name:'쿠폰 사용률',     unit:'%',  source:'BigQuery', direction:'up_is_good', category:'conversion', defaultBaseline:18.0},
-    {id:'ml_dcnt', name:'할인 적용 주문수', unit:'건', source:'BigQuery', direction:'up_is_good', category:'revenue',    defaultBaseline:50},
-  ]},
+  conversion: {
+    label: '전환/구매', color: 'bg-indigo-100 text-indigo-700',
+    metrics: [
+      { id:'ml_cvr',  name:'구매전환율',          unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:3.2 },
+      { id:'ml_atc',  name:'장바구니 추가율',      unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:12.4 },
+      { id:'ml_chk',  name:'결제완료율',           unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:74.5 },
+      { id:'ml_ccvr', name:'장바구니→주문 전환율', unit:'%',    source:'GA4',      direction:'up_is_good',   category:'conversion', defaultBaseline:61.2 },
+    ]
+  },
+  revenue: {
+    label: '매출', color: 'bg-amber-100 text-amber-700',
+    metrics: [
+      { id:'ml_rev',    name:'일평균 매출',         unit:'만원', source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:1200 },
+      { id:'ml_aov',    name:'평균 주문금액(AOV)',   unit:'원',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:52000 },
+      { id:'ml_orders', name:'주문수',              unit:'건',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:260 },
+      { id:'ml_arpu',   name:'1인당 매출(ARPU)',    unit:'원',   source:'BigQuery', direction:'up_is_good', category:'revenue', defaultBaseline:8500 },
+    ]
+  },
+  traffic: {
+    label: '트래픽/클릭', color: 'bg-blue-100 text-blue-700',
+    metrics: [
+      { id:'ml_sess',   name:'세션수',          unit:'세션', source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:8500 },
+      { id:'ml_ctr',    name:'클릭률(CTR)',      unit:'%',   source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:2.1 },
+      { id:'ml_bctr',   name:'배너 클릭률',      unit:'%',   source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:2.0 },
+      { id:'ml_impr',   name:'노출수',           unit:'회',  source:'GA4', direction:'up_is_good', category:'traffic', defaultBaseline:15000 },
+    ]
+  },
+  engagement: {
+    label: '체류/참여', color: 'bg-emerald-100 text-emerald-700',
+    metrics: [
+      { id:'ml_dur',    name:'평균 체류시간',    unit:'초',  source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:130 },
+      { id:'ml_pv',     name:'페이지뷰(PV)',     unit:'PV',  source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:25000 },
+      { id:'ml_bounce', name:'이탈률',           unit:'%',   source:'GA4', direction:'down_is_good', category:'engagement', defaultBaseline:45.0 },
+      { id:'ml_pps',    name:'세션당 페이지수',  unit:'p',   source:'GA4', direction:'up_is_good',   category:'engagement', defaultBaseline:3.2 },
+    ]
+  },
+  coupon: {
+    label: '쿠폰/프로모션', color: 'bg-pink-100 text-pink-700',
+    metrics: [
+      { id:'ml_coup',   name:'쿠폰 사용률',          unit:'%',  source:'BigQuery', direction:'up_is_good', category:'conversion', defaultBaseline:18.0 },
+      { id:'ml_dcnt',   name:'할인 적용 주문수',      unit:'건', source:'BigQuery', direction:'up_is_good', category:'revenue',    defaultBaseline:50 },
+    ]
+  }
 };
-const KW_RULES=[
-  {cat:'conversion',kw:['전환','구매','주문','결제']},
-  {cat:'revenue',   kw:['매출','수익','객단가','aov','주문금액']},
-  {cat:'traffic',   kw:['클릭','ctr','배너','노출','트래픽','클릭률']},
-  {cat:'engagement',kw:['체류','이탈','시간','머물','페이지뷰','참여']},
-  {cat:'coupon',    kw:['쿠폰','할인','프로모션','적립']},
+
+const KW_RULES = [
+  { cat:'conversion', kw:['전환','구매','주문','결제','conversion'] },
+  { cat:'revenue',    kw:['매출','수익','revenue','객단가','aov','주문금액'] },
+  { cat:'traffic',    kw:['클릭','ctr','배너','노출','트래픽','방문','클릭률'] },
+  { cat:'engagement', kw:['체류','이탈','시간','머물','페이지뷰','참여','bounce'] },
+  { cat:'coupon',     kw:['쿠폰','할인','프로모션','coupon','적립'] },
 ];
-const THEME_COLORS={
-  conversion:'background:#ede9fe;color:#5b21b6',
-  revenue:'background:#fef3c7;color:#92400e',
-  traffic:'background:#dbeafe;color:#1e40af',
-  engagement:'background:#d1fae5;color:#065f46',
-  coupon:'background:#fce7f3;color:#9d174d',
-};
-const CAT_ICON={conversion:'🎯',revenue:'💰',traffic:'📈',engagement:'⏱️'};
-const DOT_COLOR={running:'#3b82f6',completed:'#10b981',draft:'#d1d5db'};
 
-// ─────────────────────────────────────────────
+// ============================================================
 // STATE
-// ─────────────────────────────────────────────
-let state={experiments:JSON.parse(JSON.stringify(EXPERIMENTS)),selectedId:'exp-001',filter:''};
-let charts={};
-let selectedMetrics=new Set();
+// ============================================================
+let state = {
+  experiments: JSON.parse(JSON.stringify(EXPERIMENTS)),
+  selectedId: 'exp-001',
+  filter: '',
+  charts: {}
+};
+let selectedMetrics = new Set();
 
-// ─────────────────────────────────────────────
+// ============================================================
 // UTILS
-// ─────────────────────────────────────────────
-function fd(s){const d=new Date(s+'T00:00:00');return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
-function endDate(e){const d=new Date(e.startDate+'T00:00:00');d.setDate(d.getDate()+e.durationDays);return d.toISOString().split('T')[0];}
-function ch(baseline,current,dir){if(current==null)return null;const p=((current-baseline)/baseline)*100;return{pct:p,isGood:dir==='up_is_good'?p>0:p<0};}
-function fv(v,unit){
-  if(v==null)return'—';
-  if(unit==='%')return v.toFixed(1)+'%';
-  if(unit==='만원')return v.toLocaleString()+'만원';
-  if(unit==='원')return v.toLocaleString()+'원';
-  if(unit==='초'){const m=Math.floor(v/60),s=Math.round(v%60);return m>0?`${m}분 ${s}초`:`${s}초`;}
-  if(unit==='PV')return v.toLocaleString()+' PV';
-  return v.toLocaleString()+(unit?' '+unit:'');
+// ============================================================
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
-function daysSince(s){return Math.max(0,Math.floor((Date.now()-new Date(s+'T00:00:00'))/86400000));}
+function endDate(exp) {
+  const d = new Date(exp.startDate + 'T00:00:00');
+  d.setDate(d.getDate() + exp.durationDays);
+  return d.toISOString().split('T')[0];
+}
+function change(baseline, current, dir) {
+  if (current === null || current === undefined) return null;
+  const pct = ((current - baseline) / baseline) * 100;
+  return { pct, isGood: dir === 'up_is_good' ? pct > 0 : pct < 0 };
+}
+function fmtVal(v, unit) {
+  if (v === null || v === undefined) return '—';
+  if (unit === '%')    return v.toFixed(1) + '%';
+  if (unit === '만원') return v.toLocaleString() + '만원';
+  if (unit === '원')   return v.toLocaleString() + '원';
+  if (unit === '초')   { const m=Math.floor(v/60),s=Math.round(v%60); return m>0?`${m}분 ${s}초`:`${s}초`; }
+  if (unit === 'PV')   return v.toLocaleString() + ' PV';
+  return v.toLocaleString() + (unit ? ' ' + unit : '');
+}
+function statusCfg(status) {
+  return {
+    draft:     { label:'기획 중', bg:'bg-slate-100',   text:'text-slate-500',  dot:'#9ca3af' },
+    running:   { label:'진행 중', bg:'bg-blue-50',     text:'text-blue-600',   dot:'#3b82f6' },
+    completed: { label:'완료',    bg:'bg-emerald-50',  text:'text-emerald-600',dot:'#10b981' },
+  }[status] || { label:status, bg:'bg-slate-100', text:'text-slate-500', dot:'#9ca3af' };
+}
+function daysSince(dateStr) {
+  return Math.max(0, Math.floor((Date.now() - new Date(dateStr+'T00:00:00')) / 86400000));
+}
 
-// ─────────────────────────────────────────────
+// ============================================================
 // SIDEBAR
-// ─────────────────────────────────────────────
-function renderSidebar(){
-  const q=state.filter.toLowerCase();
-  const filtered=state.experiments.filter(e=>!q||e.name.toLowerCase().includes(q)||e.hypothesis.toLowerCase().includes(q));
-  const groups={running:filtered.filter(e=>e.status==='running'),completed:filtered.filter(e=>e.status==='completed'),draft:filtered.filter(e=>e.status==='draft')};
-  const labels={running:'진행 중',completed:'완료',draft:'기획 중'};
-  let html='';
-  for(const[key,exps]of Object.entries(groups)){
-    if(!exps.length)continue;
-    html+=`<div class="sidebar-group-label">${labels[key]} (${exps.length})</div>`;
-    for(const exp of exps){
-      const d=daysSince(exp.startDate);
-      const meta=exp.status==='running'?`D+${Math.min(d,exp.durationDays)} · ${Math.max(0,exp.durationDays-d)}일 남음`:
-                 exp.status==='completed'?`${exp.durationDays}일 · ${fd(endDate(exp))} 완료`:
-                 `${fd(exp.startDate)} 예정`;
-      html+=`<div class="exp-row${exp.id===state.selectedId?' active':''}" onclick="selectExp('${exp.id}')">
-        <div class="exp-row-dot" style="background:${DOT_COLOR[exp.status]||'#d1d5db'}"></div>
-        <div class="exp-row-info">
-          <div class="exp-row-name">${exp.name}</div>
-          <div class="exp-row-meta">${meta}</div>
+// ============================================================
+function renderSidebar() {
+  const q = state.filter.toLowerCase();
+  const filtered = state.experiments.filter(e =>
+    !q || e.name.toLowerCase().includes(q) || e.hypothesis.toLowerCase().includes(q)
+  );
+  const groups = {
+    running:   filtered.filter(e => e.status === 'running'),
+    completed: filtered.filter(e => e.status === 'completed'),
+    draft:     filtered.filter(e => e.status === 'draft'),
+  };
+  const titles = { running:'진행 중', completed:'완료', draft:'기획 중' };
+
+  let html = '';
+  for (const [key, exps] of Object.entries(groups)) {
+    if (!exps.length) continue;
+    html += `<div class="mb-1">
+      <div class="px-4 py-1.5">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">${titles[key]} (${exps.length})</span>
+      </div>`;
+    for (const exp of exps) {
+      const sc = statusCfg(exp.status);
+      const active = exp.id === state.selectedId;
+      const d = daysSince(exp.startDate);
+      html += `<div class="exp-card mx-2 px-3 py-3 rounded-xl mb-0.5 ${active ? 'active' : ''}" onclick="selectExp('${exp.id}')">
+        <p class="text-sm font-medium text-slate-800 leading-tight mb-1.5">${exp.name}</p>
+        <div class="flex items-center gap-2">
+          <span class="tag ${sc.bg} ${sc.text}">${sc.label}</span>
+          <span class="text-xs text-slate-400">${
+            exp.status === 'running' ? `D+${Math.min(d, exp.durationDays)}` :
+            exp.status === 'completed' ? `${exp.durationDays}일` :
+            fmtDate(exp.startDate) + ' 예정'
+          }</span>
         </div>
       </div>`;
     }
+    html += '</div>';
   }
-  document.getElementById('sidebar').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--txt-3);font-size:12px;">검색 결과 없음</div>';
+  document.getElementById('sidebar').innerHTML = html || '<p class="text-center text-sm text-slate-400 mt-8">검색 결과 없음</p>';
 }
 
-// ─────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────
-function renderMain(){
-  const el=document.getElementById('main');
-  if(!state.selectedId){
-    el.innerHTML='<div class="empty-main" style="height:calc(100vh - 44px)"><div class="empty-main-icon">📊</div><p>실험을 선택하거나 새로 만들어보세요</p></div>';
-    document.getElementById('breadcrumb-title').textContent='실험을 선택하세요';
+// ============================================================
+// MAIN CONTENT
+// ============================================================
+function renderMain() {
+  const el = document.getElementById('main');
+  if (!state.selectedId) {
+    el.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400 text-sm">실험을 선택하거나 새로 만들어보세요</div>`;
     return;
   }
-  const exp=state.experiments.find(e=>e.id===state.selectedId);
-  if(!exp)return;
-  document.getElementById('breadcrumb-title').textContent=exp.name;
+  const exp = state.experiments.find(e => e.id === state.selectedId);
+  if (!exp) return;
 
-  const end=endDate(exp);
-  const d=daysSince(exp.startDate);
-  const pct=Math.min(100,Math.round(d/exp.durationDays*100));
-  const metricsWithData=exp.metrics.filter(m=>m.current!==null);
-  const improved=metricsWithData.filter(m=>ch(m.baseline,m.current,m.direction)?.isGood);
+  const sc = statusCfg(exp.status);
+  const end = endDate(exp);
+  const d = daysSince(exp.startDate);
+  const metricsWithData = exp.metrics.filter(m => m.current !== null);
+  const improved = metricsWithData.filter(m => change(m.baseline, m.current, m.direction)?.isGood);
 
-  const statusBadge={
-    running:`<span class="badge badge-running"><span class="badge-dot"></span>진행 중</span>`,
-    completed:`<span class="badge badge-completed"><span class="badge-dot"></span>완료</span>`,
-    draft:`<span class="badge badge-draft"><span class="badge-dot"></span>기획 중</span>`,
-  }[exp.status]||'';
+  const catIcon = { conversion:'🎯', revenue:'💰', traffic:'📈', engagement:'⏱️' };
+  const srcColor = { GA4:'bg-orange-50 text-orange-600', BigQuery:'bg-blue-50 text-blue-600', Internal:'bg-purple-50 text-purple-600' };
 
-  const progressHtml=exp.status==='running'?`
-    <div class="exp-progress">
-      <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-      <span class="progress-label">D+${Math.min(d,exp.durationDays)} / ${exp.durationDays}일 (${Math.max(0,exp.durationDays-d)}일 남음)</span>
-    </div>`:'';
-
-  const summaryHtml=metricsWithData.length?`
-    <div class="summary-row">
-      <div class="summary-stat"><div class="summary-num">${exp.metrics.length}</div><div class="summary-desc">추적 지표</div></div>
-      <div class="summary-stat"><div class="summary-num green">${improved.length}</div><div class="summary-desc">개선 지표</div></div>
-      <div class="summary-stat"><div class="summary-num">${exp.durationDays}일</div><div class="summary-desc">실험 기간</div></div>
-    </div>`:'';
-
-  const metricCards=exp.metrics.map(m=>{
-    const c=ch(m.baseline,m.current,m.direction);
-    const changeHtml=c
-      ?`<div class="metric-change"><span class="metric-change-label">변화율</span><span class="${c.isGood?'chip-up':'chip-down'}">${c.pct>0?'▲':'▼'} ${Math.abs(c.pct).toFixed(1)}%</span></div>`
-      :m.current===null?`<div class="metric-change"><span class="metric-change-label">현황</span><span class="chip-neutral">수집 대기</span></div>`:'';
-    return`<div class="metric-card">
-      <div class="metric-card-top">
-        <span class="metric-cat-icon">${CAT_ICON[m.category]||'📊'}</span>
-        <span class="metric-source-badge">${m.source}</span>
-      </div>
-      <div class="metric-name">${m.name}</div>
-      <div class="metric-values">
-        <div class="metric-row"><span class="metric-row-label">Before</span><span class="metric-before">${fv(m.baseline,m.unit)}</span></div>
-        <div class="metric-row"><span class="metric-row-label">After</span><span class="metric-after${m.current===null?' none':''}">${fv(m.current,m.unit)}</span></div>
-      </div>
-      ${changeHtml}
-    </div>`;
+  // Metric cards
+  const metricCards = exp.metrics.map(m => {
+    const ch = change(m.baseline, m.current, m.direction);
+    const changeHtml = ch
+      ? `<div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+           <span class="text-xs text-slate-400">변화량</span>
+           <span class="text-sm font-bold px-2 py-0.5 rounded-lg ${ch.isGood ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'}">
+             ${ch.pct > 0 ? '▲' : '▼'} ${Math.abs(ch.pct).toFixed(1)}%
+           </span>
+         </div>`
+      : m.current === null
+      ? `<div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+           <span class="text-xs text-slate-400">현황</span>
+           <span class="text-xs text-slate-300">수집 대기</span>
+         </div>`
+      : '';
+    return `
+      <div class="metric-card bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-base">${catIcon[m.category] || '📊'}</span>
+          <span class="tag text-xs ${srcColor[m.source] || 'bg-slate-100 text-slate-500'}">${m.source}</span>
+        </div>
+        <p class="text-sm font-medium text-slate-700 mb-3 leading-tight">${m.name}</p>
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400">Before</span>
+            <span class="text-sm font-semibold text-slate-500">${fmtVal(m.baseline, m.unit)}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400">After</span>
+            <span class="text-sm font-semibold ${m.current !== null ? 'text-slate-900' : 'text-slate-300'}">${fmtVal(m.current, m.unit)}</span>
+          </div>
+        </div>
+        ${changeHtml}
+      </div>`;
   }).join('');
 
-  const chartTabsHtml=exp.status!=='draft'?`
-    <div class="chart-tabs" id="chart-tabs">
-      ${exp.metrics.map((m,i)=>`<button class="chart-tab${i===0?' active':''}" onclick="switchMetric(${i})" id="ct-${i}">${m.name}</button>`).join('')}
-    </div>`:'';
-
-  el.innerHTML=`
-    <div class="exp-header">
-      <div class="exp-title-row">
-        <span class="exp-title">${exp.name}</span>
-        ${statusBadge}
+  // Progress bar (running)
+  const progressHtml = exp.status === 'running' ? `
+    <div class="mt-3">
+      <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+        <span>D+${Math.min(d, exp.durationDays)} 경과</span>
+        <span>${Math.max(0, exp.durationDays - d)}일 남음</span>
       </div>
-      <div class="exp-meta">
-        <span>📅 ${fd(exp.startDate)} ~ ${fd(end)}</span>
-        <span class="exp-meta-sep">·</span>
-        <span>${exp.durationDays}일</span>
+      <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div class="h-full bg-blue-400 rounded-full transition-all" style="width:${Math.min(100, Math.round(d/exp.durationDays*100))}%"></div>
       </div>
-      ${progressHtml}
-      <div class="exp-tags">${exp.tags.map(t=>`<span class="tag-pill">#${t}</span>`).join('')}</div>
-    </div>
+    </div>` : '';
 
-    ${summaryHtml}
+  // Chart tabs
+  const chartTabsHtml = exp.status !== 'draft' && exp.metrics.length
+    ? `<div class="flex flex-wrap gap-1.5" id="chart-tabs">
+        ${exp.metrics.map((m,i) => `
+          <button onclick="switchMetric(${i})" id="ct-${i}"
+            class="text-xs px-3 py-1.5 rounded-lg transition-colors ${i===0?'bg-indigo-600 text-white':'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}">
+            ${m.name}
+          </button>`).join('')}
+       </div>` : '';
 
-    <div class="hypothesis-block">
-      <div class="section-label">가설</div>
-      <div class="hypothesis-text">"${exp.hypothesis}"</div>
-    </div>
+  el.innerHTML = `
+    <div class="p-8 max-w-6xl">
 
-    <div style="margin-bottom:24px">
-      <div class="section-label">핵심 지표 ${exp.status==='draft'?'<span style="color:var(--txt-3);font-weight:400;text-transform:none;letter-spacing:0;">(실험 시작 후 After 값이 채워집니다)</span>':''}</div>
-      <div class="metric-grid">${metricCards}</div>
-    </div>
-
-    ${exp.status!=='draft'?`
-      <div class="chart-section">
-        <div class="chart-header">
-          <div class="section-label" style="margin:0">지표 추이</div>
-          ${chartTabsHtml}
-        </div>
-        <div class="chart-card">
-          <canvas id="trend-chart" height="90"></canvas>
-        </div>
-      </div>
-      ${metricsWithData.length?`
-        <div class="chart-section">
-          <div class="chart-header"><div class="section-label" style="margin:0">Before / After 변화율</div></div>
-          <div class="chart-card">
-            <canvas id="compare-chart" height="65"></canvas>
+      <!-- Header -->
+      <div class="mb-7">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center gap-3 mb-1.5">
+              <h2 class="text-2xl font-bold text-slate-900">${exp.name}</h2>
+              <span class="tag ${sc.bg} ${sc.text} px-3 py-1 text-sm">${sc.label}</span>
+            </div>
+            <p class="text-sm text-slate-500">📅 ${fmtDate(exp.startDate)} ~ ${fmtDate(end)} · ${exp.durationDays}일</p>
+            ${progressHtml}
           </div>
-        </div>`:''}
-    `:`
-      <div class="empty-chart">
-        <div class="empty-chart-icon">📊</div>
-        <div>실험이 시작되면 지표 추이가 표시됩니다</div>
-        <div style="font-size:11px;color:var(--txt-3);margin-top:4px">시작 예정: ${fd(exp.startDate)}</div>
+          ${metricsWithData.length ? `
+            <div class="flex gap-5 text-center ml-6">
+              <div><div class="text-2xl font-bold text-slate-800">${metricsWithData.length}</div><div class="text-xs text-slate-400 mt-0.5">추적 지표</div></div>
+              <div><div class="text-2xl font-bold text-emerald-600">${improved.length}</div><div class="text-xs text-slate-400 mt-0.5">개선 지표</div></div>
+            </div>` : ''}
+        </div>
+        <div class="flex gap-1.5 mt-3">
+          ${exp.tags.map(t => `<span class="tag bg-slate-100 text-slate-500">#${t}</span>`).join('')}
+        </div>
       </div>
-    `}
-  `;
 
-  if(exp.status!=='draft'){
-    setTimeout(()=>{
-      renderTrend(exp,0);
-      if(metricsWithData.length)renderCompare(exp);
-    },30);
+      <!-- Hypothesis -->
+      <div class="mb-7">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">가설</p>
+        <div class="hypothesis-box rounded-xl p-4">
+          <p class="text-slate-700 leading-relaxed">"${exp.hypothesis}"</p>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="mb-8">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+          핵심 지표
+          ${exp.status === 'draft' ? '<span class="text-slate-300 font-normal normal-case text-xs ml-1">(실험 시작 후 After 값이 채워집니다)</span>' : ''}
+        </p>
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">${metricCards}</div>
+      </div>
+
+      ${exp.status !== 'draft' ? `
+        <!-- Trend chart -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">지표 추이</p>
+            ${chartTabsHtml}
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <canvas id="trend-chart" height="90"></canvas>
+          </div>
+        </div>
+
+        ${metricsWithData.length ? `
+          <!-- Before/After -->
+          <div>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Before / After 변화율</p>
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <canvas id="compare-chart" height="70"></canvas>
+            </div>
+          </div>` : ''}
+      ` : `
+        <div class="bg-white rounded-2xl border border-dashed border-slate-200 p-10 text-center">
+          <div class="text-3xl mb-2">📊</div>
+          <p class="text-slate-400 text-sm">실험이 시작되면 지표 추이가 여기에 표시됩니다</p>
+          <p class="text-slate-300 text-xs mt-1">시작 예정: ${fmtDate(exp.startDate)}</p>
+        </div>`}
+    </div>`;
+
+  if (exp.status !== 'draft') {
+    setTimeout(() => {
+      renderTrend(exp, 0);
+      if (metricsWithData.length) renderCompare(exp);
+    }, 30);
   }
 }
 
-// ─────────────────────────────────────────────
+// ============================================================
 // CHARTS
-// ─────────────────────────────────────────────
-function renderTrend(exp,idx){
-  if(charts.trend){charts.trend.destroy();delete charts.trend;}
-  const canvas=document.getElementById('trend-chart');
-  if(!canvas)return;
-  const m=exp.metrics[idx];
-  if(!m?.trend?.length)return;
-  const c=ch(m.baseline,m.current,m.direction);
-  const color=c?(c.isGood?'#10b981':'#ef4444'):'#5b5bd6';
-  charts.trend=new Chart(canvas.getContext('2d'),{
-    type:'line',
-    data:{
-      labels:m.trend.map((_,i)=>`D+${i+1}`),
-      datasets:[
-        {label:m.name,data:m.trend,borderColor:color,backgroundColor:color+'18',fill:true,tension:0.4,pointRadius:2.5,pointHoverRadius:4,pointBackgroundColor:color,borderWidth:1.8},
-        {label:'베이스라인',data:Array(m.trend.length).fill(m.baseline),borderColor:'#d1d5db',borderDash:[4,4],fill:false,pointRadius:0,borderWidth:1.2,tension:0}
+// ============================================================
+function renderTrend(exp, idx) {
+  if (state.charts.trend) { state.charts.trend.destroy(); delete state.charts.trend; }
+  const canvas = document.getElementById('trend-chart');
+  if (!canvas) return;
+  const m = exp.metrics[idx];
+  if (!m?.trend?.length) return;
+
+  const ch = change(m.baseline, m.current, m.direction);
+  const lineColor = ch ? (ch.isGood ? '#10b981' : '#ef4444') : '#6366f1';
+
+  state.charts.trend = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: m.trend.map((_,i) => `D+${i+1}`),
+      datasets: [
+        {
+          label: m.name,
+          data: m.trend,
+          borderColor: lineColor,
+          backgroundColor: lineColor + '18',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: lineColor,
+          borderWidth: 2,
+        },
+        {
+          label: '베이스라인',
+          data: Array(m.trend.length).fill(m.baseline),
+          borderColor: '#cbd5e1',
+          borderDash: [5,5],
+          fill: false,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          tension: 0,
+        }
       ]
     },
-    options:{
-      responsive:true,maintainAspectRatio:true,
-      plugins:{legend:{position:'top',labels:{font:{size:11,family:'inherit'},usePointStyle:true,boxWidth:8,padding:14}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fv(ctx.raw,m.unit)}`}}},
-      scales:{
-        x:{grid:{color:'#f0efec'},ticks:{font:{size:11,family:'inherit'},color:'#a8a7a2'}},
-        y:{grid:{color:'#f0efec'},ticks:{font:{size:11,family:'inherit'},color:'#a8a7a2',callback:v=>fv(v,m.unit)}}
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position:'top', labels:{ font:{size:11}, usePointStyle:true } },
+        tooltip: { callbacks:{ label: ctx => `${ctx.dataset.label}: ${fmtVal(ctx.raw, m.unit)}` } }
+      },
+      scales: {
+        x: { grid:{color:'#f1f5f9'}, ticks:{font:{size:11}} },
+        y: { grid:{color:'#f1f5f9'}, ticks:{ font:{size:11}, callback: v => fmtVal(v, m.unit) } }
       }
     }
   });
 }
 
-function renderCompare(exp){
-  if(charts.compare){charts.compare.destroy();delete charts.compare;}
-  const canvas=document.getElementById('compare-chart');
-  if(!canvas)return;
-  const ms=exp.metrics.filter(m=>m.current!==null);
-  const changes=ms.map(m=>ch(m.baseline,m.current,m.direction));
-  const colors=changes.map(c=>c?.isGood?'#10b981':'#ef4444');
-  charts.compare=new Chart(canvas.getContext('2d'),{
-    type:'bar',
-    data:{
-      labels:ms.map(m=>m.name),
-      datasets:[{label:'변화율(%)',data:changes.map(c=>c?+c.pct.toFixed(2):0),backgroundColor:colors.map(c=>c+'bb'),borderColor:colors,borderWidth:1.2,borderRadius:4}]
+function renderCompare(exp) {
+  if (state.charts.compare) { state.charts.compare.destroy(); delete state.charts.compare; }
+  const canvas = document.getElementById('compare-chart');
+  if (!canvas) return;
+
+  const metrics = exp.metrics.filter(m => m.current !== null);
+  const changes = metrics.map(m => change(m.baseline, m.current, m.direction));
+  const colors = changes.map(ch => ch?.isGood ? '#10b981' : '#ef4444');
+
+  state.charts.compare = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: metrics.map(m => m.name),
+      datasets: [{
+        label: '변화율 (%)',
+        data: changes.map(ch => ch ? +ch.pct.toFixed(2) : 0),
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }]
     },
-    options:{
-      responsive:true,maintainAspectRatio:true,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw>0?'+':''}${ctx.raw}%`}}},
-      scales:{
-        x:{grid:{display:false},ticks:{font:{size:11,family:'inherit'},color:'#a8a7a2'}},
-        y:{grid:{color:'#f0efec'},ticks:{font:{size:11,family:'inherit'},color:'#a8a7a2',callback:v=>`${v>0?'+':''}${v}%`}}
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display:false },
+        tooltip: { callbacks:{ label: ctx => `${ctx.raw > 0 ? '+' : ''}${ctx.raw}%` } }
+      },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:11}} },
+        y: { grid:{color:'#f1f5f9'}, ticks:{ font:{size:11}, callback: v => `${v>0?'+':''}${v}%` } }
       }
     }
   });
 }
 
-function switchMetric(idx){
-  const exp=state.experiments.find(e=>e.id===state.selectedId);
-  if(!exp)return;
-  exp.metrics.forEach((_,i)=>{
-    const b=document.getElementById(`ct-${i}`);
-    if(b)b.className='chart-tab'+(i===idx?' active':'');
+function switchMetric(idx) {
+  const exp = state.experiments.find(e => e.id === state.selectedId);
+  if (!exp) return;
+  exp.metrics.forEach((_,i) => {
+    const b = document.getElementById(`ct-${i}`);
+    if (!b) return;
+    b.className = i === idx
+      ? 'text-xs px-3 py-1.5 rounded-lg transition-colors bg-indigo-600 text-white'
+      : 'text-xs px-3 py-1.5 rounded-lg transition-colors bg-white text-slate-500 border border-slate-200 hover:bg-slate-50';
   });
-  renderTrend(exp,idx);
+  renderTrend(exp, idx);
 }
 
-// ─────────────────────────────────────────────
+// ============================================================
 // ACTIONS
-// ─────────────────────────────────────────────
-function selectExp(id){state.selectedId=id;renderSidebar();renderMain();}
-function filterList(q){state.filter=q;renderSidebar();}
+// ============================================================
+function selectExp(id) {
+  state.selectedId = id;
+  renderSidebar();
+  renderMain();
+}
 
-// ─────────────────────────────────────────────
+function filterList(q) {
+  state.filter = q;
+  renderSidebar();
+}
+
+// ============================================================
 // MODAL
-// ─────────────────────────────────────────────
-function openModal(){
-  document.getElementById('modal-bg').classList.add('open');
-  document.getElementById('f-start').value=new Date().toISOString().split('T')[0];
-  document.getElementById('analysis-box').classList.remove('open');
+// ============================================================
+function openModal() {
+  document.getElementById('modal').classList.remove('hidden');
+  document.getElementById('f-start').value = new Date().toISOString().split('T')[0];
+  document.getElementById('analysis-area').classList.add('hidden');
   selectedMetrics.clear();
 }
-function closeModal(){
-  document.getElementById('modal-bg').classList.remove('open');
-  document.getElementById('f-name').value='';
-  document.getElementById('f-hypothesis').value='';
-  document.getElementById('analysis-box').classList.remove('open');
-  document.getElementById('analyze-btn').classList.remove('ready');
+function closeModal() {
+  document.getElementById('modal').classList.add('hidden');
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-hypothesis').value = '';
+  document.getElementById('analysis-area').classList.add('hidden');
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true; btn.classList.add('opacity-40','cursor-not-allowed');
 }
-function onHypInput(){
-  const btn=document.getElementById('analyze-btn');
-  document.getElementById('f-hypothesis').value.trim().length>8?btn.classList.add('ready'):btn.classList.remove('ready');
-}
-function runAnalysis(){
-  const hyp=document.getElementById('f-hypothesis').value.toLowerCase();
-  const detected=new Set(['conversion']);
-  KW_RULES.forEach(r=>{if(r.kw.some(k=>hyp.includes(k)))detected.add(r.cat);});
 
-  document.getElementById('detected-tags').innerHTML=[...detected].map(cat=>{
-    const lib=METRIC_LIB[cat];
-    return`<span class="theme-tag" style="${THEME_COLORS[cat]||''}">${lib?.label||cat}</span>`;
+function onHypInput() {
+  const btn = document.getElementById('analyze-btn');
+  const v = document.getElementById('f-hypothesis').value.trim();
+  if (v.length > 8) {
+    btn.disabled = false; btn.classList.remove('opacity-40','cursor-not-allowed');
+  } else {
+    btn.disabled = true; btn.classList.add('opacity-40','cursor-not-allowed');
+  }
+}
+
+function runAnalysis() {
+  const hyp = document.getElementById('f-hypothesis').value.toLowerCase();
+  const detected = new Set(['conversion']);
+  KW_RULES.forEach(r => { if (r.kw.some(k => hyp.includes(k))) detected.add(r.cat); });
+
+  // Theme tags
+  document.getElementById('detected-tags').innerHTML = [...detected].map(cat => {
+    const lib = METRIC_LIB[cat];
+    return `<span class="tag ${lib?.color || 'bg-slate-100 text-slate-500'}">${lib?.label || cat}</span>`;
   }).join('');
 
+  // Metric checkboxes
   selectedMetrics.clear();
-  let html='';
-  for(const cat of detected){
-    const lib=METRIC_LIB[cat];if(!lib)continue;
-    html+=`<div class="metric-check-divider">${lib.label}</div>`;
-    lib.metrics.forEach((m,i)=>{
-      const checked=i<2;if(checked)selectedMetrics.add(m.id);
-      html+=`<label class="metric-check-item">
-        <input type="checkbox" value="${m.id}" ${checked?'checked':''} onchange="toggleM('${m.id}',this.checked)">
-        <span class="metric-check-name">${m.name}</span>
-        <span class="metric-check-unit">(${m.unit})</span>
-        <span class="metric-check-src">${m.source}</span>
+  let html = '';
+  for (const cat of detected) {
+    const lib = METRIC_LIB[cat];
+    if (!lib) continue;
+    html += `<div class="mb-3">
+      <div class="flex items-center gap-2 mb-1.5">
+        <div class="h-px flex-1 bg-slate-100"></div>
+        <span class="text-xs text-slate-400 font-medium">${lib.label}</span>
+        <div class="h-px flex-1 bg-slate-100"></div>
+      </div>`;
+    lib.metrics.forEach((m, i) => {
+      const checked = i < 2;
+      if (checked) selectedMetrics.add(m.id);
+      html += `<label class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+        <input type="checkbox" value="${m.id}" ${checked ? 'checked' : ''} onchange="toggleM('${m.id}',this.checked)"
+          class="rounded text-indigo-600 focus:ring-indigo-300">
+        <span class="text-sm text-slate-700 flex-1">${m.name} <span class="text-slate-400 text-xs">(${m.unit})</span></span>
+        <span class="tag bg-slate-100 text-slate-500 text-xs">${m.source}</span>
       </label>`;
     });
+    html += '</div>';
   }
-  document.getElementById('metric-list').innerHTML=html;
-  document.getElementById('analysis-box').classList.add('open');
-}
-function toggleM(id,checked){checked?selectedMetrics.add(id):selectedMetrics.delete(id);}
-
-function createExp(){
-  const name=document.getElementById('f-name').value.trim();
-  const hyp=document.getElementById('f-hypothesis').value.trim();
-  const start=document.getElementById('f-start').value;
-  const dur=parseInt(document.getElementById('f-dur').value)||14;
-  if(!name||!hyp||!start){alert('실험명, 가설, 시작일을 입력해주세요.');return;}
-
-  const metrics=[];
-  for(const cat of Object.values(METRIC_LIB))
-    for(const m of cat.metrics)
-      if(selectedMetrics.has(m.id))
-        metrics.push({id:m.id+'_'+Date.now(),name:m.name,unit:m.unit,source:m.source,direction:m.direction,category:m.category,baseline:m.defaultBaseline,current:null,trend:[]});
-
-  if(!metrics.length)metrics.push(
-    {id:'d1_'+Date.now(),name:'구매전환율', unit:'%',    source:'GA4',      direction:'up_is_good',category:'conversion',baseline:3.0, current:null,trend:[]},
-    {id:'d2_'+Date.now(),name:'세션수',     unit:'세션', source:'GA4',      direction:'up_is_good',category:'traffic',   baseline:8000,current:null,trend:[]},
-    {id:'d3_'+Date.now(),name:'일평균 매출',unit:'만원', source:'BigQuery', direction:'up_is_good',category:'revenue',   baseline:1100,current:null,trend:[]},
-  );
-
-  const lo=hyp.toLowerCase();
-  const tags=[];
-  if(/전환|구매|결제/.test(lo))tags.push('전환');
-  if(/매출|수익/.test(lo))tags.push('매출');
-  if(/클릭|ctr|배너/.test(lo))tags.push('CTR');
-  if(/쿠폰|할인/.test(lo))tags.push('쿠폰');
-
-  state.experiments.unshift({id:'exp-'+Date.now(),name,hypothesis:hyp,status:'draft',startDate:start,durationDays:dur,tags:tags.length?tags:['신규'],metrics});
-  state.selectedId=state.experiments[0].id;
-  closeModal();renderSidebar();renderMain();
+  document.getElementById('metric-list').innerHTML = html;
+  document.getElementById('analysis-area').classList.remove('hidden');
 }
 
-// ─────────────────────────────────────────────
+function toggleM(id, checked) {
+  checked ? selectedMetrics.add(id) : selectedMetrics.delete(id);
+}
+
+function createExp() {
+  const name = document.getElementById('f-name').value.trim();
+  const hyp  = document.getElementById('f-hypothesis').value.trim();
+  const start = document.getElementById('f-start').value;
+  const dur   = parseInt(document.getElementById('f-dur').value) || 14;
+  if (!name || !hyp || !start) { alert('실험명, 가설, 시작일을 입력해주세요.'); return; }
+
+  const metrics = [];
+  for (const cat of Object.values(METRIC_LIB)) {
+    for (const m of cat.metrics) {
+      if (selectedMetrics.has(m.id)) {
+        metrics.push({ id:m.id+'_'+Date.now(), name:m.name, unit:m.unit, source:m.source,
+          direction:m.direction, category:m.category, baseline:m.defaultBaseline, current:null, trend:[] });
+      }
+    }
+  }
+  if (!metrics.length) {
+    metrics.push(
+      { id:'d_cvr_'+Date.now(), name:'구매전환율',  unit:'%',    source:'GA4',     direction:'up_is_good', category:'conversion', baseline:3.0,  current:null, trend:[] },
+      { id:'d_ses_'+Date.now(), name:'세션수',       unit:'세션', source:'GA4',     direction:'up_is_good', category:'traffic',    baseline:8000, current:null, trend:[] },
+      { id:'d_rev_'+Date.now(), name:'일평균 매출',  unit:'만원', source:'BigQuery',direction:'up_is_good', category:'revenue',    baseline:1100, current:null, trend:[] },
+    );
+  }
+
+  const tags = [];
+  const lo = hyp.toLowerCase();
+  if (/전환|구매|결제/.test(lo)) tags.push('전환');
+  if (/매출|수익/.test(lo))      tags.push('매출');
+  if (/클릭|ctr|배너/.test(lo))  tags.push('CTR');
+  if (/쿠폰|할인/.test(lo))      tags.push('쿠폰');
+
+  const newExp = { id:'exp-'+Date.now(), name, hypothesis:hyp, status:'draft', startDate:start,
+    durationDays:dur, tags:tags.length?tags:['신규실험'], metrics };
+
+  state.experiments.unshift(newExp);
+  state.selectedId = newExp.id;
+  closeModal();
+  renderSidebar();
+  renderMain();
+}
+
+// ============================================================
 // INIT
-// ─────────────────────────────────────────────
+// ============================================================
 renderSidebar();
 renderMain();
 </script>
